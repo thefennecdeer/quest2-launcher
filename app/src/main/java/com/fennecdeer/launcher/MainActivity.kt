@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mDevicePolicyManager: DevicePolicyManager
     private lateinit var binding: ActivityMainBinding
 
-    private val KIOSK_PACKAGE = "com.cypha."
+    private val KIOSK_PACKAGE = "com.wearecypha.vrroadtripupdate"
     private val APP_PACKAGES = arrayOf(KIOSK_PACKAGE)
 
     private val handlerThread = HandlerThread("MyHandlerThread")
