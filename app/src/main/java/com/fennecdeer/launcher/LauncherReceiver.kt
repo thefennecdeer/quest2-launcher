@@ -13,7 +13,6 @@ class LauncherReceiver : BroadcastReceiver() {
         if (Intent.ACTION_BOOT_COMPLETED == intent.action) {
             val activityIntent = Intent(context, MainActivity::class.java)
             activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            activityIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             context.startActivity(activityIntent)
         }
 
