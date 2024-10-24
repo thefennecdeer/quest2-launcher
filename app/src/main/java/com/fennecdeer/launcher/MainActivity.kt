@@ -25,64 +25,66 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.fennecdeer.launcher.databinding.ActivityMainBinding
 import com.google.android.material.snackbar.Snackbar
-
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import se.vidstige.jadb.JadbConnection
+import se.vidstige.jadb.JadbDevice
+import se.vidstige.jadb.JadbException
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.util.Timer
+import kotlin.concurrent.timerTask
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var mAdminComponentName: ComponentName
-    private lateinit var mDevicePolicyManager: DevicePolicyManager
+
     private lateinit var binding: ActivityMainBinding
+    private lateinit var ADBManager: ADBManager
 
     private val KIOSK_PACKAGE = "com.wearecypha.vrroadtrip"
-    private val APP_PACKAGES = arrayOf(KIOSK_PACKAGE)
 
-    private val handlerThread = HandlerThread("MyHandlerThread")
-    lateinit var handler: Handler
-    lateinit var runnable: Runnable
-    private val threadDelay: Long = 5000
 
     private val TAG = MainActivity::class.java.simpleName
 
+
+
+
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
+
         Log.i(TAG,"aaa!")
+
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        mAdminComponentName = LauncherDeviceAdminReceiver.getComponentName(this)
-        mDevicePolicyManager = getSystemService(DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
         //mDevicePolicyManager.removeActiveAdmin(mAdminComponentName)
         Log.i(TAG,"aaa!")
-        handlerThread.start()
-        handler = Handler(handlerThread.looper)
-
-        runnable = Runnable {
-            if (ActivityFinder.Helper.isAppRunning(applicationContext, KIOSK_PACKAGE)) {
-                Log.i(TAG,"yes!")
-            } else {
-                Log.i(TAG, "nope!")
-                //launchPackage()
-            }
-            handler.postDelayed(runnable, threadDelay)
-        }
-
-        val isAdmin = isAdmin()
-        if (isAdmin) {
-            Snackbar.make(binding.content, R.string.device_owner, Snackbar.LENGTH_SHORT).show()
-        } else {
-            Snackbar.make(binding.content, R.string.not_device_owner, Snackbar.LENGTH_SHORT).show()
-        }
-        binding.btStartLockTask.setOnClickListener {
-            setKioskPolicies(true, isAdmin)
-        }
-        binding.btStopLockTask.setOnClickListener {
-            setKioskPolicies(false, isAdmin)
-        }
-        mDevicePolicyManager.setLockTaskPackages(mAdminComponentName, APP_PACKAGES)
 
 
+        CoroutineScope(Dispatchers.IO).launch {
+            ADBManager = ADBManager()
+            val adbDevice = ADBManager.initADB()
+            ADBManager.pauseGuardian(adbDevice)
+        }
+
+
+//        Timer().schedule(timerTask {
+//            runShell("/system/bin/setprop debug.oculus.guardian_pause 1")
+//            System.setProperty("debug.oculus.guardian_pause", "1")
+//        }, 2000)
+//
+//        Timer().schedule(timerTask {
+//            runShell("/system/bin/getprop debug.oculus_guardian.pause")
+//        }, 2500)
+//        Timer().schedule(timerTask {
+//            runShell("/system/bin/getprop")
+//        }, 2500)
         // Start our kiosk app's main activity with our lock task mode option.
         launchPackage()
 
@@ -92,22 +94,6 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         launchPackage()
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        handlerThread.quit()
-    }
-
-     fun removeCallbacks(boolean: Boolean) {
-        if (boolean) {
-            handler.removeCallbacks(runnable)
-        }
-        else {
-            handler.postDelayed(runnable, threadDelay)
-        }
-    }
-
-    private fun isAdmin() = mDevicePolicyManager.isDeviceOwnerApp(packageName)
 
     private fun launchPackage() {
         val packageManager = packageManager
@@ -127,124 +113,5 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, result.resultCode.toString())
             launchPackage()
         }
-    }
-    private fun setKioskPolicies(enable: Boolean, isAdmin: Boolean) {
-        if (isAdmin) {
-            setRestrictions(enable)
-            enableStayOnWhilePluggedIn(enable)
-            setUpdatePolicy(enable)
-            setAsHomeApp(enable)
-        }
-        setLockTask(enable, isAdmin)
-        setImmersiveMode(enable)
-    }
-
-    // region restrictions
-    private fun setRestrictions(disallow: Boolean) {
-        setUserRestriction(UserManager.DISALLOW_SAFE_BOOT, disallow)
-        setUserRestriction(UserManager.DISALLOW_FACTORY_RESET, disallow)
-        mDevicePolicyManager.setStatusBarDisabled(mAdminComponentName, disallow)
-    }
-
-    private fun setUserRestriction(restriction: String, disallow: Boolean) = if (disallow) {
-        mDevicePolicyManager.addUserRestriction(mAdminComponentName, restriction)
-    } else {
-        mDevicePolicyManager.clearUserRestriction(mAdminComponentName, restriction)
-    }
-    // endregion
-
-    private fun enableStayOnWhilePluggedIn(active: Boolean) = if (active) {
-        mDevicePolicyManager.setGlobalSetting(
-            mAdminComponentName,
-            Settings.Global.STAY_ON_WHILE_PLUGGED_IN,
-            (BatteryManager.BATTERY_PLUGGED_AC
-                    or BatteryManager.BATTERY_PLUGGED_USB
-                    or BatteryManager.BATTERY_PLUGGED_WIRELESS).toString()
-        )
-    } else {
-        mDevicePolicyManager.setGlobalSetting(
-            mAdminComponentName,
-            Settings.Global.STAY_ON_WHILE_PLUGGED_IN,
-            "0"
-        )
-    }
-
-    private fun setLockTask(start: Boolean, isAdmin: Boolean) {
-        if (isAdmin) {
-            mDevicePolicyManager.setLockTaskPackages(
-                mAdminComponentName, if (start) arrayOf(packageName) else arrayOf()
-            )
-        }
-        if (start) {
-            startLockTask()
-        } else {
-            stopLockTask()
-        }
-    }
-
-    private fun setUpdatePolicy(enable: Boolean) {
-        if (enable) {
-            mDevicePolicyManager.setSystemUpdatePolicy(
-                mAdminComponentName,
-                SystemUpdatePolicy.createWindowedInstallPolicy(60, 120)
-            )
-        } else {
-            mDevicePolicyManager.setSystemUpdatePolicy(mAdminComponentName, null)
-        }
-    }
-
-    private fun setAsHomeApp(enable: Boolean) {
-        if (enable) {
-            val intentFilter = IntentFilter(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-                addCategory(Intent.CATEGORY_DEFAULT)
-            }
-            mDevicePolicyManager.addPersistentPreferredActivity(
-                mAdminComponentName,
-                intentFilter,
-                ComponentName(packageName, MainActivity::class.java.name)
-            )
-        } else {
-            mDevicePolicyManager.clearPackagePersistentPreferredActivities(
-                mAdminComponentName, packageName
-            )
-        }
-    }
-
-
-    @Suppress("DEPRECATION")
-    private fun setImmersiveMode(enable: Boolean) {
-        if (enable) {
-            val flags = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-            window.decorView.systemUiVisibility = flags
-        } else {
-            val flags = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
-            window.decorView.systemUiVisibility = flags
-        }
-    }
-
-    private fun createIntentSender(
-        context: Context?,
-        sessionId: Int,
-        packageName: String?
-    ): IntentSender {
-        val intent = Intent("INSTALL_COMPLETE")
-        if (packageName != null) {
-            intent.putExtra("PACKAGE_NAME", packageName)
-        }
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            sessionId,
-            intent,
-            FLAG_IMMUTABLE
-        )
-        return pendingIntent.intentSender
     }
 }

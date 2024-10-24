@@ -1,18 +1,24 @@
 [versions]
 agp = "8.6.0"
+hiddenapibypass = "2.0"
+jadb = "v1.2.1"
 kotlin = "1.9.0"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
+libadbAndroid = "1.0.1"
 lifecycleRuntimeKtx = "2.8.6"
 activityCompose = "1.9.2"
 composeBom = "2024.04.01"
 appcompat = "1.7.0"
 material = "1.12.0"
+sunSecurityAndroid = "1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapibypass" }
+jadb = { module = "com.github.vidstige:jadb", version.ref = "jadb" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -28,6 +34,7 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+sun-security-android = { module = "implementation 'com.github.MuntashirAkon:sun-security-android", version.ref = "sunSecurityAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
